@@ -1,20 +1,20 @@
-<!-- Agent-readable instructions -->
-# Agent Instructions
+# Agent Notes
 
-This file is intended for automated agents to read.
+## Project Context
+- **Workspace root:** `/Users/cwelling/Tribal`
+- **Active repo:** `HC1/` → `https://github.com/ChristianSAW/HC1.git`
+- **Branches:** `main`, `f1`
 
-## Purpose
+## Agent Behavior
+- Do not auto-commit or auto-push without explicit user instruction
+- Always read a file before editing it
+- Prefer parallel tool calls for independent operations
+- Use dedicated tools (Read, Edit, Write, Glob, Grep) over Bash equivalents
 
-- Provide a concise, machine-readable source of instructions for agents operating on this repository.
+## Known Project State
+- HC1 has a single initial commit on `main`
+- Branch `f1` exists as a feature branch
 
-## Usage
-
-- Agents should read this file on startup and follow any instructions contained herein.
-
-## Notes
-
-- Keep this file short and stable; avoid frequent edits that could disrupt automated workflows.
-
-## Contact
-
-- If clarification is needed, open an issue or contact the repository owner.
+## Memory
+- Persistent memory stored at: `~/.claude/projects/-Users-cwelling-Tribal/memory/`
+- Update `MEMORY.md` with stable patterns discovered during sessions
