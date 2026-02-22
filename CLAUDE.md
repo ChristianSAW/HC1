@@ -1,62 +1,174 @@
-<<<<<<< HEAD
-# CLAUDE.md
+# Warmth — Project Context for Claude
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## 1. Project Overview
 
-## Project Overview
+**Warmth** is a relationship tracker for MBA students at the Haas School of Business. It helps users maintain outreach cadence with contacts via nudges, circles, and weekly reflection. The core insight: relationships decay without intentional maintenance; Warmth surfaces who to reach out to and when.
 
-HC1 is a calendar and scheduling productivity app. It is currently in early-stage development — no build system, language framework, or test infrastructure has been configured yet. The repository is tracked at `https://github.com/ChristianSAW/HC1`.
+---
 
-### Product Goals
+## 2. Development Commands
 
-- Help users manage their time through calendar views, event scheduling, and time-blocking
-- Tech stack is not yet decided; evaluate options before initializing the project
+```bash
+npm run dev      # Start Vite dev server
+npm run build    # Production build
+npm run test     # Run Vitest suite
+npm run lint     # ESLint
+```
 
-## Repository Structure
+---
 
-- `HC1/` — main project repository directory
-- `AGENT.md` — Machine-readable instructions for automated agents operating on this repo. Keep it short and stable.
-- `.claude/settings.local.json` — Local Claude Code permission settings (allows `git config`, `find`, `git ls-tree` commands).
+## 3. Tech Stack
 
-## Development Notes
+| Layer | Technology |
+|---|---|
+| UI Framework | React 18 + TypeScript |
+| Build Tool | Vite |
+| Routing | React Router v6 |
+| Backend / Auth | Supabase (Postgres + Auth) |
+| Component Library | shadcn/ui + Radix UI primitives |
+| Styling | Tailwind CSS |
+| Date Math | date-fns |
+| Data Fetching | Direct Supabase calls (TanStack Query installed, not yet used) |
 
-- This project follows an agent-first development approach, designed for iterative development with AI agent assistance.
-- When adding new infrastructure (build tools, test frameworks, linting), update this file accordingly.
+---
 
-## Workflow Preferences
+## 4. Folder Structure
 
-- Confirm before pushing to remote branches
-- Confirm before force-push or other destructive git operations
-- Prefer editing existing files over creating new ones when possible
+```
+src/
+  pages/          # One file per route
+  components/     # AppLayout, BottomNav, ContactCard
+    ui/           # shadcn primitives
+  hooks/          # useAuth.tsx, use-mobile.tsx
+  lib/            # nudges.ts, constants.ts, defaultContacts.ts, utils.ts
+  integrations/
+    supabase/     # client.ts, types.ts
+docs/             # Technical reference docs
+warmth-spec.md    # Product/strategy spec
+```
 
-## Code Style
+---
 
-- Keep solutions minimal and focused; avoid over-engineering
-- No docstrings, comments, or type annotations added to unchanged code
-- No backwards-compatibility shims for removed code
+## 5. Routing & Auth
 
-## Notes
+**Public routes:** `/auth`, `/reset-password`
 
-- This workspace root may host additional artifacts, but HC1 is the active git repository in scope for these instructions.
-=======
-# Tribal — Claude Configuration
+**Protected routes:** All others — wrapped in `ProtectedRoute` → `AppLayout`
 
-## Project Overview
-Workspace containing the HC1 project (`./HC1`), tracked at https://github.com/ChristianSAW/HC1.
+### `useAuth()` (`src/hooks/useAuth.tsx`)
+- Wraps `supabase.auth.onAuthStateChange` + `getSession`
+- Exposes `{ user, session, loading, signOut }`
 
-## Key Directories
-- `HC1/` — main project repository
+### `ProtectedRoute`
+- Shows loading spinner while `loading: true`
+- Redirects to `/auth` if no user
 
-## Workflow Preferences
-- Confirm before pushing to remote branches
-- Confirm before force-push or destructive git operations
+---
+
+## 6. Data Fetching Pattern
+
+- Direct Supabase calls inside `useEffect` per page; no global store
+- All queries scoped to `user_id` from `useAuth()`
+- Pattern: `await supabase.from(...).select() / .insert() / .upsert() / .delete()`
+
+---
+
+## 7. Data Model (Supabase Tables)
+
+| Table | Key Columns |
+|---|---|
+| `profiles` | `id` (FK → auth.users), `display_name`, `avatar_url` |
+| `contacts` | `name`, `location`, `relationship_depth` (1–5), `energy_level`, `tags` (text[]), `last_interaction_date`, `phone`, `email`, `linkedin`, `notes` |
+| `interactions` | `contact_id` (FK), `interaction_type`, `interaction_date`, `notes` |
+| `circles` | `user_id` (FK), `name`, `description` |
+| `contact_circles` | join: `contact_id` + `circle_id` + `user_id` |
+| `reflections` | `week_of` (date), `made_week_better` / `neglected` / `invest_long_term` (text[]) |
+
+Full TypeScript types: `src/integrations/supabase/types.ts` — use `Tables<"contacts">` etc.
+
+---
+
+## 8. Nudge Logic (`src/lib/nudges.ts`)
+
+### `getNudgeBadge(contact)` — priority order:
+1. No `last_interaction_date` → `"🔥 Reach out"`
+2. `depth >= 4` AND `days >= 14` → `"⭐ Priority"`
+3. Long distance AND `days >= 30` → `"🌎 Check in"`
+4. `days >= 21` → `"💛 Nudge"`
+5. `null` (no badge)
+
+### `getWeeklyOutreach()`
+Scores contacts (days capped at 90 + depth bonus + overdue bonus), returns top 5.
+
+### Category Functions
+- `getGoingCold` — not contacted in 30+ days
+- `getCloseFriendsAtRisk` — depth ≥ 4, not contacted in 14+ days
+- `getLongDistance` — non-Bay-Area location
+- `getLocal` — Bay Area location
+
+---
+
+## 9. Constants (`src/lib/constants.ts`)
+
+**`HAAS_TAGS`** — Section A–F, Tech Club, Finance Club, Entrepreneurship, Consortium, International, Bay Area, East Coast, West Coast, Home, Close Friend, Recruiting, Mentor, Study Group
+
+**`BAY_AREA_LOCATIONS`** — Berkeley, San Francisco, Oakland, Palo Alto, San Jose, Mountain View, Sunnyvale, Fremont, Walnut Creek
+
+**`ENERGY_LEVELS`** — `"Positive"` | `"Neutral"` | `"Draining"`
+
+---
+
+## 10. Sample / Default Contacts (`src/lib/defaultContacts.ts`)
+
+- 9 seed contacts with IDs prefixed `default_`
+- Stored in `localStorage` key `"warmth_default_contacts"`
+- Shown when user has no real Supabase contacts
+- `isDefaultContact(id)` — returns `true` if `id.startsWith("default_")`; gates edit/delete operations
+
+---
+
+## 11. Design System
+
+| Token | Value |
+|---|---|
+| Primary | terracotta `hsl(16 55% 52%)` |
+| Secondary | olive `hsl(82 20% 55%)` |
+| Background | cream `hsl(30 33% 96%)` |
+| Body Font | Inter (weights 300–600) |
+| Heading Font | Source Serif 4 |
+| Base Border Radius | `0.75rem` |
+| Card Radius | `rounded-2xl` |
+| Dark Mode | Class-based (`.dark`); same CSS variable names, shifted HSL |
+
+Full reference: `docs/theme.md`
+
+---
+
+## 12. Key Utilities
+
+- `cn(...classes)` — `src/lib/utils.ts` — clsx + tailwind-merge
+- `isDefaultContact(id)` — `src/lib/defaultContacts.ts`
+
+---
+
+## 13. Workflow Preferences
+
+- Confirm before push, force-push, or any destructive git operation
 - Prefer editing existing files over creating new ones
+- Keep solutions minimal; no over-engineering
+- Do not add docstrings, comments, or type annotations to unchanged code
+- Do not add backwards-compatibility shims for removed code
+- Do not create helpers or abstractions for one-time operations
 
-## Code Style
-- Keep solutions minimal and focused; avoid over-engineering
-- No docstrings, comments, or type annotations added to unchanged code
-- No backwards-compatibility shims for removed code
+---
 
-## Notes
-- This workspace root is not itself a git repository; HC1 has its own git repo
->>>>>>> 098e351 (Add CLAUDE.md, agent.md, and .gitignore)
+## 14. Reference Docs
+
+| File | Contents |
+|---|---|
+| `docs/theme.md` | Full design system (colors, fonts, spacing, dark mode) |
+| `docs/features.md` | All screens and user flows |
+| `docs/architecture.md` | Tech stack, folder structure, patterns |
+| `docs/data-model.md` | DB schema + TypeScript types |
+| `docs/nudge-logic.md` | Nudge rules, scoring algorithm, badge hierarchy |
+| `warmth-spec.md` | Product vision and strategy spec |
