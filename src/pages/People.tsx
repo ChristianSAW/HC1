@@ -7,28 +7,37 @@ import { Button } from "@/components/ui/button";
 import { Plus, Search } from "lucide-react";
 import ContactCard from "@/components/ContactCard";
 import { getNudgeBadge } from "@/lib/nudges";
+import { loadDefaultContacts, isDefaultContact } from "@/lib/defaultContacts";
 
 const People = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [contacts, setContacts] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showingDefaults, setShowingDefaults] = useState(false);
 
   const fetchContacts = async () => {
-    if (!user) return;
+    if (!user) {
+      setContacts(loadDefaultContacts());
+      setShowingDefaults(true);
+      setLoading(false);
+      return;
+    }
     const { data } = await supabase
       .from("contacts")
       .select("*")
       .eq("user_id", user.id)
       .order("name");
-    setContacts(data || []);
+    const real = data || [];
+    setContacts([...real, ...loadDefaultContacts()]);
+    setShowingDefaults(true);
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchContacts();
-  }, [user]);
+    if (!authLoading) fetchContacts();
+  }, [user, authLoading]);
 
   const filtered = contacts.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -44,6 +53,12 @@ const People = () => {
           <Plus className="h-5 w-5" />
         </Button>
       </div>
+
+      {showingDefaults && (
+        <div className="rounded-xl bg-muted px-4 py-2.5 text-sm text-muted-foreground">
+          These are sample contacts — add your own to get started
+        </div>
+      )}
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -72,6 +87,7 @@ const People = () => {
               contact={c}
               badge={getNudgeBadge(c) ?? undefined}
               onReachOut={fetchContacts}
+              readOnly={isDefaultContact(c.id)}
             />
           ))}
         </div>

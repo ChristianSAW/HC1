@@ -18,9 +18,10 @@ interface ContactCardProps {
   };
   badge?: string;
   onReachOut?: () => void;
+  readOnly?: boolean;
 }
 
-const ContactCard = ({ contact, badge, onReachOut }: ContactCardProps) => {
+const ContactCard = ({ contact, badge, onReachOut, readOnly }: ContactCardProps) => {
   const navigate = useNavigate();
   const daysSince = contact.last_interaction_date
     ? differenceInDays(new Date(), new Date(contact.last_interaction_date))
@@ -52,7 +53,7 @@ const ContactCard = ({ contact, badge, onReachOut }: ContactCardProps) => {
 
   return (
     <div
-      onClick={() => navigate(`/people/${contact.id}`)}
+      onClick={() => !readOnly && navigate(`/people/${contact.id}`)}
       className="flex items-center gap-3 rounded-2xl bg-card p-4 shadow-sm transition-shadow hover:shadow-md cursor-pointer"
     >
       <Avatar className="h-12 w-12">
@@ -75,14 +76,16 @@ const ContactCard = ({ contact, badge, onReachOut }: ContactCardProps) => {
           {daysSince !== null ? `${daysSince}d ago` : "No interactions yet"}
         </p>
       </div>
-      <Button
-        size="sm"
-        variant="outline"
-        className="shrink-0 rounded-xl text-xs"
-        onClick={handleReachOut}
-      >
-        Reach Out
-      </Button>
+      {!readOnly && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="shrink-0 rounded-xl text-xs"
+          onClick={handleReachOut}
+        >
+          Reach Out
+        </Button>
+      )}
     </div>
   );
 };
