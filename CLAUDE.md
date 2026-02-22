@@ -4,7 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-HC1 is an early-stage repository. No build system, language framework, or test infrastructure has been configured yet.
+HC1 is a calendar and scheduling productivity app. It is currently in early-stage development — no build system, language framework, or test infrastructure has been configured yet.
+
+### Product Goals
+
+- Help users manage their time through calendar views, event scheduling, and time-blocking
+- Tech stack is not yet decided; evaluate options before initializing the project
 
 ## Repository Structure
 
