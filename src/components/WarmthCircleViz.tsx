@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,25 +37,31 @@ interface Props {
 
 const WarmthCircleViz = ({ contacts, onReachOut }: Props) => {
   const [selected, setSelected] = useState<Contact | null>(null);
+  const { user } = useAuth();
   const nodes = getRingNodes(contacts);
 
   const handleReachOut = async () => {
-    if (!selected) return;
-    const { data: { user } } = await supabase.auth.getUser();
+    if (!selected || !user) return;
     const { error } = await supabase.from("interactions").insert({
       contact_id: selected.id,
-      user_id: user?.id,
+      user_id: user.id,
       interaction_type: "reach_out",
     });
-    if (!error) {
-      await supabase
-        .from("contacts")
-        .update({ last_interaction_date: new Date().toISOString().split("T")[0] })
-        .eq("id", selected.id);
-      toast({ title: "Logged!", description: `Interaction with ${selected.name} recorded.` });
-      setSelected(null);
-      onReachOut();
+    if (error) {
+      toast({ title: "Error", description: "Failed to log interaction.", variant: "destructive" });
+      return;
     }
+    const { error: updateError } = await supabase
+      .from("contacts")
+      .update({ last_interaction_date: new Date().toISOString().split("T")[0] })
+      .eq("id", selected.id);
+    if (updateError) {
+      toast({ title: "Error", description: "Failed to update contact.", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Logged!", description: `Interaction with ${selected.name} recorded.` });
+    setSelected(null);
+    onReachOut();
   };
 
   const daysSince = selected?.last_interaction_date
@@ -80,9 +87,10 @@ const WarmthCircleViz = ({ contacts, onReachOut }: Props) => {
               strokeWidth={1.5}
             />
             <text
-              x={SVG_CENTER + RING_RADII[ring] + 4}
+              x={SVG_CENTER + RING_RADII[ring] - 4}
               y={SVG_CENTER}
               fontSize={9}
+              textAnchor="end"
               fill="hsl(var(--muted-foreground))"
               dominantBaseline="middle"
             >

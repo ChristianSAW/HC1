@@ -18,6 +18,8 @@ export interface RingNode {
   y: number;
 }
 
+const NODE_RADIUS = 18;
+
 export function getRingNodes(contacts: Contact[]): RingNode[] {
   const groups: Record<number, Contact[]> = { 1: [], 2: [], 3: [], 4: [] };
   for (const c of contacts) {
@@ -27,9 +29,12 @@ export function getRingNodes(contacts: Contact[]): RingNode[] {
   const nodes: RingNode[] = [];
   for (const ring of [1, 2, 3, 4] as const) {
     const ringContacts = groups[ring];
-    const count = ringContacts.length;
     const r = RING_RADII[ring];
-    ringContacts.forEach((contact, i) => {
+    // Max contacts before nodes overlap: floor(2π / (2 * arcsin(NODE_RADIUS / r)))
+    const maxCount = Math.floor(Math.PI / Math.asin(NODE_RADIUS / r));
+    const visible = ringContacts.slice(0, maxCount);
+    const count = visible.length;
+    visible.forEach((contact, i) => {
       const angle = (2 * Math.PI * i) / count - Math.PI / 2;
       nodes.push({
         contact,
