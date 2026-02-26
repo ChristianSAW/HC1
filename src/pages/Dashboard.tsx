@@ -58,33 +58,23 @@ const Dashboard = () => {
 
   const CONTACTS_QUERY = "id, name, photo_url, location, last_interaction_date, relationship_depth, tags";
 
-  useEffect(() => {
-    if (!user) return;
-    const fetchContacts = async () => {
-      const { data, error } = await supabase
-        .from("contacts")
-        .select(CONTACTS_QUERY)
-        .eq("user_id", user.id);
-      if (error) {
-        console.error("Failed to load contacts:", error.message);
-      } else {
-        setContacts((data as Contact[]) || []);
-      }
-      setLoading(false);
-    };
-    fetchContacts();
-  }, [user]);
-
-  const refetchContacts = async () => {
+  const fetchContacts = async (opts?: { showLoading?: boolean }) => {
     if (!user) return;
     const { data, error } = await supabase
       .from("contacts")
       .select(CONTACTS_QUERY)
       .eq("user_id", user.id);
-    if (!error) {
+    if (error) {
+      console.error("Failed to load contacts:", error.message);
+    } else {
       setContacts((data as Contact[]) || []);
     }
+    if (opts?.showLoading) setLoading(false);
   };
+
+  useEffect(() => {
+    fetchContacts({ showLoading: true });
+  }, [user]);
 
   if (loading) {
     return (
@@ -142,7 +132,7 @@ const Dashboard = () => {
           </p>
         </div>
       ) : viewMode === "circle" ? (
-        <WarmthCircleViz contacts={contacts} onReachOut={refetchContacts} />
+        <WarmthCircleViz contacts={contacts} onReachOut={fetchContacts} />
       ) : (
         <div className="space-y-8">
           <Section
@@ -150,35 +140,35 @@ const Dashboard = () => {
             title="This week's outreach"
             contacts={getWeeklyOutreach(contacts)}
             emptyText="You're all caught up!"
-            onReachOut={refetchContacts}
+            onReachOut={fetchContacts}
           />
           <Section
             emoji="🔥"
             title="Going cold"
             contacts={getGoingCold(contacts)}
             emptyText="Everyone's warm!"
-            onReachOut={refetchContacts}
+            onReachOut={fetchContacts}
           />
           <Section
             emoji="⭐"
             title="Close friends at risk"
             contacts={getCloseFriendsAtRisk(contacts)}
             emptyText="Your close friends are taken care of."
-            onReachOut={refetchContacts}
+            onReachOut={fetchContacts}
           />
           <Section
             emoji="📍"
             title="Local"
             contacts={getLocal(contacts)}
             emptyText="No local contacts yet."
-            onReachOut={refetchContacts}
+            onReachOut={fetchContacts}
           />
           <Section
             emoji="🌎"
             title="Long-distance"
             contacts={getLongDistance(contacts)}
             emptyText="No long-distance contacts."
-            onReachOut={refetchContacts}
+            onReachOut={fetchContacts}
           />
         </div>
       )}
