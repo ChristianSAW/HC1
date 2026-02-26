@@ -56,19 +56,35 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"list" | "circle">("list");
 
-  const fetchContacts = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("contacts")
-      .select("id, name, photo_url, location, last_interaction_date, relationship_depth, tags")
-      .eq("user_id", user.id);
-    setContacts((data as Contact[]) || []);
-    setLoading(false);
-  };
+  const CONTACTS_QUERY = "id, name, photo_url, location, last_interaction_date, relationship_depth, tags";
 
   useEffect(() => {
+    if (!user) return;
+    const fetchContacts = async () => {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select(CONTACTS_QUERY)
+        .eq("user_id", user.id);
+      if (error) {
+        console.error("Failed to load contacts:", error.message);
+      } else {
+        setContacts((data as Contact[]) || []);
+      }
+      setLoading(false);
+    };
     fetchContacts();
   }, [user]);
+
+  const refetchContacts = async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("contacts")
+      .select(CONTACTS_QUERY)
+      .eq("user_id", user.id);
+    if (!error) {
+      setContacts((data as Contact[]) || []);
+    }
+  };
 
   if (loading) {
     return (
@@ -88,6 +104,9 @@ const Dashboard = () => {
         {contacts.length > 0 && (
           <div className="flex rounded-xl border overflow-hidden text-sm">
             <button
+              type="button"
+              aria-pressed={viewMode === "list"}
+              aria-label="List view"
               onClick={() => setViewMode("list")}
               className={`px-3 py-1.5 transition-colors ${
                 viewMode === "list"
@@ -98,6 +117,9 @@ const Dashboard = () => {
               List
             </button>
             <button
+              type="button"
+              aria-pressed={viewMode === "circle"}
+              aria-label="Circle view"
               onClick={() => setViewMode("circle")}
               className={`px-3 py-1.5 transition-colors ${
                 viewMode === "circle"
@@ -120,7 +142,7 @@ const Dashboard = () => {
           </p>
         </div>
       ) : viewMode === "circle" ? (
-        <WarmthCircleViz contacts={contacts} onReachOut={fetchContacts} />
+        <WarmthCircleViz contacts={contacts} onReachOut={refetchContacts} />
       ) : (
         <div className="space-y-8">
           <Section
@@ -128,35 +150,35 @@ const Dashboard = () => {
             title="This week's outreach"
             contacts={getWeeklyOutreach(contacts)}
             emptyText="You're all caught up!"
-            onReachOut={fetchContacts}
+            onReachOut={refetchContacts}
           />
           <Section
             emoji="🔥"
             title="Going cold"
             contacts={getGoingCold(contacts)}
             emptyText="Everyone's warm!"
-            onReachOut={fetchContacts}
+            onReachOut={refetchContacts}
           />
           <Section
             emoji="⭐"
             title="Close friends at risk"
             contacts={getCloseFriendsAtRisk(contacts)}
             emptyText="Your close friends are taken care of."
-            onReachOut={fetchContacts}
+            onReachOut={refetchContacts}
           />
           <Section
             emoji="📍"
             title="Local"
             contacts={getLocal(contacts)}
             emptyText="No local contacts yet."
-            onReachOut={fetchContacts}
+            onReachOut={refetchContacts}
           />
           <Section
             emoji="🌎"
             title="Long-distance"
             contacts={getLongDistance(contacts)}
             emptyText="No long-distance contacts."
-            onReachOut={fetchContacts}
+            onReachOut={refetchContacts}
           />
         </div>
       )}
