@@ -44,4 +44,16 @@ describe("getWarmthRing", () => {
   it("returns 4 for contact seen 91 days ago", () => {
     expect(getWarmthRing({ id: "1", name: "A", last_interaction_date: "2025-11-27" })).toBe(4);
   });
+
+  it("returns 4 when last_interaction_date is undefined", () => {
+    expect(getWarmthRing({ id: "1", name: "A", last_interaction_date: undefined })).toBe(4);
+  });
+
+  it("returns 4 when last_interaction_date is absent", () => {
+    expect(getWarmthRing({ id: "1", name: "A" })).toBe(4);
+  });
+
+  it("returns 1 for a future interaction date", () => {
+    expect(getWarmthRing({ id: "1", name: "A", last_interaction_date: "2026-03-01" })).toBe(1);
+  });
 });
