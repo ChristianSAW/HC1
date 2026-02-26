@@ -72,3 +72,12 @@ export function getNudgeBadge(contact: Contact): string | null {
   if (days >= 21) return "💛 Nudge";
   return null;
 }
+
+export function getWarmthRing(contact: Contact): 1 | 2 | 3 | 4 {
+  if (!contact.last_interaction_date) return 4;
+  const days = differenceInDays(new Date(), new Date(contact.last_interaction_date));
+  if (days <= 7) return 1;
+  if (days <= 30) return 2;
+  if (days <= 90) return 3;
+  return 4;
+}
