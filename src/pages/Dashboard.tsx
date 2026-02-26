@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import ContactCard from "@/components/ContactCard";
+import WarmthCircleViz from "@/components/WarmthCircleViz";
 import {
   getGoingCold,
   getCloseFriendsAtRisk,
@@ -53,6 +54,7 @@ const Dashboard = () => {
   const { user } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<"list" | "circle">("list");
 
   const fetchContacts = async () => {
     if (!user) return;
@@ -77,10 +79,36 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="px-4 py-6 max-w-lg mx-auto space-y-8">
-      <header>
-        <h1 className="text-3xl font-bold">Warmth</h1>
-        <p className="text-muted-foreground mt-1">Nurture your relationships</p>
+    <div className="px-4 py-6 max-w-lg mx-auto space-y-6">
+      <header className="flex items-end justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Warmth</h1>
+          <p className="text-muted-foreground mt-1">Nurture your relationships</p>
+        </div>
+        {contacts.length > 0 && (
+          <div className="flex rounded-xl border overflow-hidden text-sm">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`px-3 py-1.5 transition-colors ${
+                viewMode === "list"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              List
+            </button>
+            <button
+              onClick={() => setViewMode("circle")}
+              className={`px-3 py-1.5 transition-colors ${
+                viewMode === "circle"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              Circle
+            </button>
+          </div>
+        )}
       </header>
 
       {contacts.length === 0 ? (
@@ -91,8 +119,10 @@ const Dashboard = () => {
             Add your first contact to get personalized insights.
           </p>
         </div>
+      ) : viewMode === "circle" ? (
+        <WarmthCircleViz contacts={contacts} onReachOut={fetchContacts} />
       ) : (
-        <>
+        <div className="space-y-8">
           <Section
             emoji="🎯"
             title="This week's outreach"
@@ -128,7 +158,7 @@ const Dashboard = () => {
             emptyText="No long-distance contacts."
             onReachOut={fetchContacts}
           />
-        </>
+        </div>
       )}
     </div>
   );
