@@ -11,6 +11,11 @@ dependencies = [
     "phonenumbers>=8.13.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
 [project.scripts]
 hc1 = "src.cli:main"
 
