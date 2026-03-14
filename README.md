@@ -214,6 +214,44 @@ python -m pytest -v
 
 ---
 
+## Developer Notes
+
+> These notes are for the developer working with Claude Code on this project, not end users.
+
+### Session memory
+
+Claude Code stores persistent memory for this project at:
+
+```
+~/.claude/projects/-Users-cwelling-Tribal-HC1/memory/
+  MEMORY.md              ← index (auto-loaded every session)
+  project_decisions.md   ← key decisions, rationale, deferred items
+```
+
+`MEMORY.md` is automatically loaded into Claude's context at the start of every session. To explicitly prompt Claude to load and recap the current state, say:
+
+```
+read your memory
+```
+
+or
+
+```
+check your memory and summarize where we left off
+```
+
+### Updating memory
+
+At the end of a significant session (new decisions made, limitations found, phase completed), ask Claude to update the memory file:
+
+```
+update your memory with what we did today
+```
+
+Keep `project_decisions.md` focused on **decisions and rationale** — not a log of every change. What would a new collaborator need to know to pick up without re-litigating old choices?
+
+---
+
 ## Project structure
 
 ```

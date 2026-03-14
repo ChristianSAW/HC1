@@ -19,6 +19,12 @@ Workspace containing the HC1 project (`./HC1`), tracked at https://github.com/Ch
 ## Notes
 - This workspace root is not itself a git repository; HC1 has its own git repo
 
+## Session Memory
+At the start of each session, read the memory index at:
+`~/.claude/projects/-Users-cwelling-Tribal-HC1/memory/MEMORY.md`
+
+This index links to memory files with key context on decisions, rationale, and current state. Always consult it before making architectural suggestions or picking up where prior work left off. The user can also say "read your memory" or "check your memory" to trigger this explicitly.
+
 # Personal Relationship Intelligence — Project Context
 
 ## What This Is
