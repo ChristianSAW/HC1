@@ -123,6 +123,53 @@ def cmd_ask(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ollama(args: argparse.Namespace) -> int:
+    """Manage the local Ollama server."""
+    import subprocess
+
+    from src.llm.ollama_lifecycle import is_running
+
+    action = args.action
+
+    if action == "status":
+        print("Ollama is running." if is_running() else "Ollama is not running.")
+        return 0
+
+    if action == "start":
+        if is_running():
+            print("Ollama is already running.")
+            return 0
+        import shutil
+        if not shutil.which("ollama"):
+            print("Error: Ollama is not installed. Install from https://ollama.ai", file=sys.stderr)
+            return 1
+        subprocess.Popen(
+            ["ollama", "serve"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        import time
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if is_running():
+                print("Ollama started.")
+                return 0
+            time.sleep(0.3)
+        print("Error: Ollama failed to start within 10 seconds.", file=sys.stderr)
+        return 1
+
+    if action == "stop":
+        if not is_running():
+            print("Ollama is not running.")
+            return 0
+        subprocess.run(["pkill", "-x", "ollama"], check=False)
+        print("Ollama stopped.")
+        return 0
+
+    return 0
+
+
 def cmd_stats(args: argparse.Namespace) -> int:
     """Show ingestion statistics."""
     store = KnowledgeStore(db_path=Path(args.store) if args.store else None)
@@ -184,6 +231,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Model name to use (e.g. claude-sonnet-4-6, llama3.2)",
     )
     p_ask.set_defaults(func=cmd_ask)
+
+    # ollama
+    p_ollama = sub.add_parser("ollama", help="Manage local Ollama server")
+    p_ollama.add_argument(
+        "action",
+        choices=["start", "stop", "status"],
+        help="Action to perform",
+    )
+    p_ollama.set_defaults(func=cmd_ollama)
 
     # stats
     p_stats = sub.add_parser("stats", parents=[shared], help="Show knowledge store statistics")
