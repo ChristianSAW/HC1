@@ -184,9 +184,23 @@ class KnowledgeStore:
     # Search
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _sanitize_fts_query(query: str) -> str:
+        """Escape special FTS5 characters and build a safe query string."""
+        # Remove characters that have special meaning in FTS5 syntax
+        special = set('*?{}[]()^~@:!#$%&;+\\/"\'')
+        tokens = query.split()
+        cleaned = []
+        for token in tokens:
+            sanitized = "".join(ch for ch in token if ch not in special)
+            if sanitized:
+                cleaned.append(f'"{sanitized}"')
+        return " OR ".join(cleaned) if cleaned else '""'
+
     def search(self, query: str, limit: int = 20) -> list[dict]:
         """Full-text search over message content. Returns list of result dicts."""
         conn = self._get_conn()
+        fts_query = self._sanitize_fts_query(query)
         rows = conn.execute(
             """
             SELECT
@@ -202,7 +216,7 @@ class KnowledgeStore:
             ORDER BY rank
             LIMIT ?
             """,
-            (query, limit),
+            (fts_query, limit),
         ).fetchall()
 
         return [
