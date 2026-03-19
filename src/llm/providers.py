@@ -132,5 +132,7 @@ def make_provider(name: str, model: Optional[str] = None) -> LLMProvider:
     if name == "anthropic":
         return AnthropicProvider(model=model or AnthropicProvider.DEFAULT_MODEL)
     if name == "ollama":
+        from src.llm.ollama_lifecycle import ensure_running
+        ensure_running()
         return OllamaProvider(model=model or OllamaProvider.DEFAULT_MODEL)
     raise ValueError(f"Unknown provider {name!r}. Choose 'anthropic' or 'ollama'.")
