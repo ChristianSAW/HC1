@@ -12,6 +12,73 @@ from src.llm.providers import make_provider
 from src.query.engine import QueryEngine
 from src.readers.imessage import IMessageReader
 
+_SLASH_HELP = (
+    "Available commands:\n"
+    "  /model                          — show current provider and model\n"
+    "  /model <model>                  — switch model within current provider\n"
+    "  /model <provider> <model>       — switch provider and model\n"
+    "  /help                           — show this help message"
+)
+
+
+def _run_interactive(engine: "QueryEngine", provider_name: str) -> None:
+    import os
+
+    print("HC1 — Ask questions about your iMessage history. Type 'quit' to exit.")
+    print("     Type /help for available commands.\n")
+    while True:
+        try:
+            question = input("You: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+        if question.lower() in {"quit", "exit", "q"}:
+            break
+        if not question:
+            continue
+
+        # Slash commands
+        if question.startswith("/"):
+            parts = question.split()
+            cmd = parts[0].lower()
+
+            if cmd == "/help":
+                print(f"\n{_SLASH_HELP}\n")
+            elif cmd == "/model":
+                args_list = parts[1:]
+                if len(args_list) == 0:
+                    model = engine.provider.model
+                    print(f"\nCurrent model: {provider_name}/{model}\n")
+                elif len(args_list) == 1:
+                    new_model = args_list[0]
+                    try:
+                        engine.provider = make_provider(provider_name, model=new_model)
+                        print(f"\nSwitched to {provider_name}/{new_model}\n")
+                    except ValueError as e:
+                        print(f"\nError: {e}\n")
+                elif len(args_list) == 2:
+                    new_provider_name, new_model = args_list[0], args_list[1]
+                    if new_provider_name not in ("anthropic", "ollama"):
+                        print(f"\nUnknown provider: {new_provider_name}. Use 'anthropic' or 'ollama'.\n")
+                        continue
+                    if new_provider_name == "anthropic" and not os.environ.get("ANTHROPIC_API_KEY"):
+                        print("\nError: ANTHROPIC_API_KEY environment variable not set.\n")
+                        continue
+                    try:
+                        engine.provider = make_provider(new_provider_name, model=new_model)
+                        provider_name = new_provider_name
+                        print(f"\nSwitched to {provider_name}/{new_model}\n")
+                    except ValueError as e:
+                        print(f"\nError: {e}\n")
+                else:
+                    print("\nUsage: /model [<provider>] [<model>]\n")
+            else:
+                print(f"\nUnknown command: {cmd}. Type /help for available commands.\n")
+            continue
+
+        answer = engine.answer(question)
+        print(f"\nHC1: {answer}\n")
+
 
 def cmd_ingest(args: argparse.Namespace) -> int:
     """Read iMessage chat.db and index messages into the knowledge store."""
@@ -78,7 +145,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
     """Answer a natural language question about iMessage history."""
     import os
 
-    provider_name = args.provider or "anthropic"
+    provider_name = args.provider or "ollama"
 
     if provider_name == "anthropic" and not os.environ.get("ANTHROPIC_API_KEY"):
         print("Error: ANTHROPIC_API_KEY environment variable not set.", file=sys.stderr)
@@ -99,19 +166,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
     engine = QueryEngine(store=store, provider=provider)
 
     if args.interactive:
-        print("HC1 — Ask questions about your iMessage history. Type 'quit' to exit.\n")
-        while True:
-            try:
-                question = input("You: ").strip()
-            except (EOFError, KeyboardInterrupt):
-                print()
-                break
-            if question.lower() in {"quit", "exit", "q"}:
-                break
-            if not question:
-                continue
-            answer = engine.answer(question)
-            print(f"\nHC1: {answer}\n")
+        _run_interactive(engine, provider_name)
     else:
         question = " ".join(args.question)
         if not question:
@@ -170,6 +225,45 @@ def cmd_ollama(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_start(args: argparse.Namespace) -> int:
+    """Start an interactive session with local Ollama by default."""
+    import os
+
+    provider_name = args.provider or "ollama"
+
+    if provider_name == "anthropic" and not os.environ.get("ANTHROPIC_API_KEY"):
+        print("Error: ANTHROPIC_API_KEY environment variable not set.", file=sys.stderr)
+        return 1
+
+    store = KnowledgeStore(db_path=Path(args.store) if args.store else None)
+
+    if store.message_count() == 0:
+        print("Knowledge store is empty. Run `hc1 ingest` first.", file=sys.stderr)
+        return 1
+
+    try:
+        provider = make_provider(provider_name, model=args.model or None)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+    engine = QueryEngine(store=store, provider=provider)
+    _run_interactive(engine, provider_name)
+    return 0
+
+
+def cmd_stop(args: argparse.Namespace) -> int:
+    """Stop any running Ollama server."""
+    import subprocess
+
+    from src.llm.ollama_lifecycle import stop_managed
+
+    stop_managed()
+    subprocess.run(["pkill", "-x", "ollama"], check=False)
+    print("Ollama stopped.")
+    return 0
+
+
 def cmd_stats(args: argparse.Namespace) -> int:
     """Show ingestion statistics."""
     store = KnowledgeStore(db_path=Path(args.store) if args.store else None)
@@ -222,8 +316,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_ask.add_argument(
         "--provider",
         choices=["anthropic", "ollama"],
-        default="anthropic",
-        help="LLM provider to use for synthesis (default: anthropic)",
+        default="ollama",
+        help="LLM provider to use for synthesis (default: ollama)",
     )
     p_ask.add_argument(
         "--model",
@@ -240,6 +334,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="Action to perform",
     )
     p_ollama.set_defaults(func=cmd_ollama)
+
+    # start
+    p_start = sub.add_parser("start", parents=[shared], help="Start interactive session (local Ollama)")
+    p_start.add_argument(
+        "--provider",
+        choices=["anthropic", "ollama"],
+        default="ollama",
+        help="LLM provider (default: ollama)",
+    )
+    p_start.add_argument(
+        "--model",
+        metavar="NAME",
+        help="Model name to use (e.g. llama3.2, claude-sonnet-4-6)",
+    )
+    p_start.set_defaults(func=cmd_start)
+
+    # stop
+    p_stop = sub.add_parser("stop", help="Stop Ollama server")
+    p_stop.set_defaults(func=cmd_stop)
 
     # stats
     p_stats = sub.add_parser("stats", parents=[shared], help="Show knowledge store statistics")
